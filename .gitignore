@@ -132,3 +132,4 @@ dmypy.json
 # custom .gitignore
 **/data
 .vscode/
+assignment.pdf
