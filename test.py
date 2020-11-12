@@ -11,6 +11,8 @@ import scripts.our_functions as f
 
 # f.probability_purchase(['user_session', 'product_id', 'event_type', 'event_time'])
 
+# f.average_time_cart(['event_type', 'user_session', 'product_id', 'event_time'])
+
 f.average_time_after_first_view(['event_type', 'event_time', 'user_id'])
 
 # print(f.get_profit_per_month('elco'))
@@ -18,3 +20,7 @@ f.average_time_after_first_view(['event_type', 'event_time', 'user_id'])
 # f.price_std_dev(['brand', 'product_id', 'price'])
 
 # f.top_n_two_months_losses(['brand', 'product_id', 'price', 'event_type'], 'Oct', 'Nov')
+
+# f.prove_pareto(['event_type', 'user_id', 'price'])
+
+# f.prove_pareto_ops(['user_id'])

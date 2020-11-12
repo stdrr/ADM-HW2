@@ -10,22 +10,30 @@ DATA_PATH = './data/'
 
 month_files = ['2019-Oct.csv', '2019-Nov.csv']
 total_records = 109950743 
+dtype = {'price':np.float32, 'product_id':np.int32, 'user_id':np.int32}
 
+########## UTILITY ROUTINES ############################################################################################################
 
-def get_needed_data(month_files:list, columns:list, parse_dates=False):
-    global DATA_PATH
-    dataframes = []
+def get_needed_data(month_files:list, columns:list, parse_dates=False, concat=True):
+    global DATA_PATH, dtype
+    dataframes = pd.DataFrame(columns=columns) if concat else []
     date_parser = pd.to_datetime if parse_dates else None
-    for month in month_files:
-        dataframes.append(pd.read_csv(os.path.join(DATA_PATH, month), usecols=columns, parse_dates=parse_dates, date_parser=date_parser))
+    infer_datetime = True if parse_dates else False
+    if concat:
+        for month in month_files:
+            dataframes = pd.concat([dataframes, pd.read_csv(os.path.join(DATA_PATH, month), usecols=columns, parse_dates=parse_dates, date_parser=date_parser, infer_datetime_format=infer_datetime, dtype=dtype)], ignore_index=True)
+    else:
+        for month in month_files:
+            dataframes.append(pd.read_csv(os.path.join(DATA_PATH, month), usecols=columns, parse_dates=parse_dates, date_parser=date_parser, infer_datetime_format=infer_datetime))
     return dataframes
 
 
 def get_needed_iterator(month_files:list, columns:list, chunksize:int=10**6, parse_dates=False):
+    global DATA_PATH, dtype
     iterators = []
     date_parser = pd.to_datetime if parse_dates else None
     for month in month_files:
-        iterators.append(pd.read_csv(os.path.join(DATA_PATH, month), usecols=columns, parse_dates=parse_dates, date_parser=date_parser, chunksize=chunksize))
+        iterators.append(pd.read_csv(os.path.join(DATA_PATH, month), usecols=columns, parse_dates=parse_dates, date_parser=date_parser, chunksize=chunksize, dtype=dtype))
     return iterators
 
 
@@ -47,6 +55,19 @@ def clean_memory(garbage:list):
     size = len(garbage)
     for i in range(size-1, -1, -1):
         del garbage[i]
+
+
+def get_purchases(columns:list):
+    global month_files
+    purchases_months_list = []
+    for month in month_files:
+        iterator = load_data([month, ], columns, chunk=True)[0]
+        purchases_list = []
+        for dataset in iterator:
+            purchases_list.append(dataset[dataset.event_type == 'purchase'])
+        purchases_months_list.append(pd.concat(purchases_list, ignore_index=True))
+        clean_memory(purchases_list)
+    return purchases_months_list
 
 
 ########## RQ1 ############################################################################################################
@@ -102,20 +123,6 @@ def average_number_operations(columns:list):
     plt.ylabel('Frequency')
     plt.show()
 
-# def average_number_operations(columns:list):
-#     global month_files
-#     count_events_list = []
-#     dataset_iterators = load_data(month_files, columns, chunk=True)
-#     for iterator in dataset_iterators:
-#         for dataset in iterator:
-#             r = dataset.groupby(['user_session', 'event_type']).event_type.agg(num_event='count')
-#             count_events_list.append(r)
-#             del r
-#     count_events = pd.concat(count_events_list).groupby(['user_session', 'event_type']).num_event.sum()
-#     n_sessions = count_events.index.get_level_values('user_session').nunique()
-#     average_n_op = count_events.groupby('event_type').sum().apply(lambda x: x / n_sessions)
-#     average_n_op.plot.bar()
-
 
 
 ## ***** How many times, on average, a user views a product before adding it to the cart? (WORKS)
@@ -123,13 +130,13 @@ def average_views_before_cart(columns:list):
     global month_files
     carts_list = []
     views_carts_list = []
-    dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=True)
+    dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=['event_time'])
     for iterator in dataset_iterators:
         for dataset in iterator:
             carts_list.append(dataset[dataset.event_type == 'cart'])
     carts = pd.concat(carts_list, ignore_index=True)
     clean_memory(carts_list)
-    dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=True)
+    dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=['event_time'])
     for iterator in dataset_iterators:
         for dataset in iterator:
             views_per_chunk = dataset[dataset.event_type == 'view']
@@ -167,45 +174,61 @@ def probability_purchase(columns:list):
 
 
 
+## ***** What’s the average time an item stays in the cart before being removed?
+def average_time_cart(columns:list):
+    global month_files
+    last_session_op_list = []
+    carts_list = []
+    purchases_list = []
+    dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=['event_time'])
+    for iterator in dataset_iterators:
+        for dataset in iterator:
+            carts_list.append(dataset[dataset.event_type == 'cart'])
+            purchases_list.append(dataset[dataset.event_type == 'purchase'])
+            last_session_op_list.append(dataset.groupby('user_session').event_time.max())
+            clean_memory([dataset, ])
+    carts = pd.concat(carts_list, ignore_index=True)
+    purchases = pd.concat(purchases_list, ignore_index=True)
+    clean_memory([carts_list, purchases_list])
+    pending_carts = carts.merge(purchases, on=['user_session', 'product_id'], how='left', indicator=True)['left_only']
+    clean_memory([carts, purchases])
+    last_session_op = pd.concat(last_session_op_list).groupby('user_session').max()
+    time_deltas = 0
+    for session, max_time in last_session_op.items():
+        time_deltas += pending_carts[pending_carts.user_session == session].event_time.apply(lambda x: (x-max_time).total_seconds()).sum()
+    print(f'The average time an item stays in the cart before being removed is {round(time_deltas / pending_carts.size, 2)} seconds.')
+
+
+
 ## ***** How much time passes on average between the first view time and a purchase/addition to cart?
 def average_time_after_first_view(columns:list):
     global month_files
-    user_views_p_min_list = []
-    user_purchases_carts_p_min_list = []
-    dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=True)
-    for iterator in dataset_iterators:
-        for dataset in iterator:
-            user_views_p_min_list.append(dataset[dataset.event_type == 'view'].groupby('user_id').event_time.min())
-            user_purchases_carts_p_min_list.append(dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')].groupby('user_id').event_time.min())
-            clean_memory([dataset, ])
-    user_views_min = pd.concat(user_views_p_min_list).groupby('user_id').event_time.min()
-    clean_memory(user_views_p_min_list)
-    user_purchases_carts_min = pd.concat(user_purchases_carts_p_min_list).groupby('user_id').event_time.min()
-    clean_memory(user_purchases_carts_p_min_list)
-    joined = user_views_min.to_frame().merge(user_purchases_carts_min.to_frame(), on='user_id', suffixes=['_views', '_purchases_carts'])
     sum_deltas = 0
-    for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
-        sum_deltas += (t_purchases_carts - t_views).total_seconds()
+    total_rows = 0
+    for month in month_files:
+        views = pd.DataFrame({'event_time':[], 'user_id':[]})
+        purchases_carts = pd.DataFrame({'event_time':[], 'user_id':[]})
+        iterator = load_data([month,], columns, chunk=True, parse_dates=['event_time'])[0]
+        for dataset in tqdm(iterator):
+            views = pd.concat([views, dataset[dataset.event_type == 'view'][['event_time', 'user_id']]], ignore_index=True)
+            purchases_carts = pd.concat([purchases_carts, dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['event_time', 'user_id']]], ignore_index=True)
+            del dataset
+        user_views_min = views.groupby('user_id').event_time.min()
+        del views
+        user_purchases_carts_min = purchases_carts.groupby('user_id').event_time.min()
+        del purchases_carts
+        joined = user_views_min.to_frame().merge(user_purchases_carts_min.to_frame(), on='user_id', suffixes=['_views', '_purchases_carts'])
+        del user_views_min, user_purchases_carts_min
+        for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
+            sum_deltas += (t_purchases_carts - t_views).total_seconds()
+        total_rows += joined.size
+        del joined
     print(f'The average time between the first view time and a purchase/addition to cart is {round((sum_deltas / joined.size) / 3600, 2)} hours.') # we convert the time from seconds to hours
 
 
 
 
 ########## RQ4 ############################################################################################################
-
-def get_purchases(columns:list):
-    global month_files
-    purchases_months_list = []
-    for month in month_files:
-        iterator = load_data([month, ], columns, chunk=True)[0]
-        purchases_list = []
-        for dataset in iterator:
-            purchases_list.append(dataset[dataset.event_type == 'purchase'])
-        purchases_months_list.append(pd.concat(purchases_list, ignore_index=True))
-        clean_memory(purchases_list)
-    return purchases_months_list
-
-
 
 ## ***** How much does each brand earn per month? (WORKS)
 def get_profit_per_month(brand_name, dataset_list:list=None):
@@ -253,3 +276,27 @@ def top_n_two_months_losses(columns:list, month1:str, month2:str, n=3):
         print(f'The brand \"{diff_profit_list[i][0]}\" lost {round(diff_profit_list[i][1] * -1)} between {month1} and {month2}.')
 
             
+
+########## RQ7 ############################################################################################################
+
+## ***** Prove that the pareto principle applies to your store.
+def prove_pareto(columns:list):
+    global month_files
+    purchases = pd.concat(get_purchases(columns), ignore_index=True)
+    total_business = purchases.price.sum()
+    n20_users = int(purchases.user_id.nunique() * 0.2)
+    profit_from_n20_users = purchases.groupby('user_id').price.agg('sum').nlargest(n20_users).sum()
+    print(f'The 20% of the users is responsible of the {round(profit_from_n20_users / total_business * 100)}% of the business.')
+
+
+
+def prove_pareto_ops(columns:list):
+    global month_files
+    dataset = pd.Series()
+    for month in month_files:
+        dataset = pd.concat([dataset, pd.read_csv(os.path.join(DATA_PATH, month), usecols=columns, dtype=np.int32, squeeze=True)], ignore_index=True)
+    n20_users = int(dataset.nunique() * 0.2)
+    total_ops = dataset.size
+    ops_from_n20_users = dataset.value_counts().nlargest(n20_users).sum()
+    print(f'The 20% of the users is responsible of the {round(ops_from_n20_users / total_ops * 100)}% of the business.')
+        
