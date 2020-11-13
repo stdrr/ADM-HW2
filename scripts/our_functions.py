@@ -3,6 +3,8 @@ import numpy as np
 from matplotlib import pyplot as plt 
 from tqdm import tqdm
 import datetime
+from threading import Thread
+from queue import Queue
 
 import os, glob
 
@@ -68,6 +70,8 @@ def get_purchases(columns:list):
         purchases_months_list.append(pd.concat(purchases_list, ignore_index=True))
         clean_memory(purchases_list)
     return purchases_months_list
+
+
 
 
 ########## RQ1 ############################################################################################################
@@ -182,7 +186,7 @@ def average_time_cart(columns:list):
     purchases_list = []
     dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=['event_time'])
     for iterator in dataset_iterators:
-        for dataset in iterator:
+        for dataset in tqdm(iterator):
             carts_list.append(dataset[dataset.event_type == 'cart'])
             purchases_list.append(dataset[dataset.event_type == 'purchase'])
             last_session_op_list.append(dataset.groupby('user_session').event_time.max())
@@ -190,7 +194,7 @@ def average_time_cart(columns:list):
     carts = pd.concat(carts_list, ignore_index=True)
     purchases = pd.concat(purchases_list, ignore_index=True)
     clean_memory([carts_list, purchases_list])
-    pending_carts = carts.merge(purchases, on=['user_session', 'product_id'], how='left', indicator=True)['left_only']
+    pending_carts = carts.merge(purchases, on=['user_session', 'product_id'], how='left', indicator=True)['left']
     clean_memory([carts, purchases])
     last_session_op = pd.concat(last_session_op_list).groupby('user_session').max()
     time_deltas = 0
@@ -203,27 +207,23 @@ def average_time_cart(columns:list):
 ## ***** How much time passes on average between the first view time and a purchase/addition to cart?
 def average_time_after_first_view(columns:list):
     global month_files
-    sum_deltas = 0
-    total_rows = 0
-    for month in month_files:
-        views = pd.DataFrame({'event_time':[], 'user_id':[]})
-        purchases_carts = pd.DataFrame({'event_time':[], 'user_id':[]})
-        iterator = load_data([month,], columns, chunk=True, parse_dates=['event_time'])[0]
+    user_views_p_min_list = []
+    user_purchases_carts_p_min_list = []
+    dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=['event_time'])
+    for iterator in dataset_iterators:
         for dataset in tqdm(iterator):
-            views = pd.concat([views, dataset[dataset.event_type == 'view'][['event_time', 'user_id']]], ignore_index=True)
-            purchases_carts = pd.concat([purchases_carts, dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['event_time', 'user_id']]], ignore_index=True)
-            del dataset
-        user_views_min = views.groupby('user_id').event_time.min()
-        del views
-        user_purchases_carts_min = purchases_carts.groupby('user_id').event_time.min()
-        del purchases_carts
-        joined = user_views_min.to_frame().merge(user_purchases_carts_min.to_frame(), on='user_id', suffixes=['_views', '_purchases_carts'])
-        del user_views_min, user_purchases_carts_min
-        for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
-            sum_deltas += (t_purchases_carts - t_views).total_seconds()
-        total_rows += joined.size
-        del joined
-    print(f'The average time between the first view time and a purchase/addition to cart is {round((sum_deltas / joined.size) / 3600, 2)} hours.') # we convert the time from seconds to hours
+            user_views_p_min_list.append(dataset[dataset.event_type == 'view'][['user_id', 'event_time']].groupby('user_id').event_time.min())
+            user_purchases_carts_p_min_list.append(dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'event_time']].groupby('user_id').event_time.min())
+            clean_memory([dataset, ])
+    user_views_min = pd.concat(user_views_p_min_list).groupby('user_id').min()
+    clean_memory(user_views_p_min_list)
+    user_purchases_carts_min = pd.concat(user_purchases_carts_p_min_list).groupby('user_id').min()
+    clean_memory(user_purchases_carts_p_min_list)
+    joined = user_views_min.to_frame().merge(user_purchases_carts_min.to_frame(), on='user_id', suffixes=['_views', '_purchases_carts'])
+    sum_deltas = 0
+    for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
+        sum_deltas += (t_purchases_carts - t_views).total_seconds()
+    print(f'The average time between the first view time and a purchase/addition to cart is {round((sum_deltas / joined.size) / 3600)} hours.') # we convert the time from seconds to hours
 
 
 
