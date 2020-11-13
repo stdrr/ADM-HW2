@@ -194,7 +194,8 @@ def average_time_cart(columns:list):
     carts = pd.concat(carts_list, ignore_index=True)
     purchases = pd.concat(purchases_list, ignore_index=True)
     clean_memory([carts_list, purchases_list])
-    pending_carts = carts.merge(purchases, on=['user_session', 'product_id'], how='left', indicator=True)['left']
+    pending_carts = carts.merge(purchases, on=['user_session', 'product_id'], how='left', indicator=True)
+    pending_carts = pending_carts[pending_carts._merge == 'left_only']
     clean_memory([carts, purchases])
     last_session_op = pd.concat(last_session_op_list).groupby('user_session').max()
     time_deltas = 0
