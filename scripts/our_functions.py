@@ -46,13 +46,6 @@ def load_data(month_files:list, columns:list, chunk=False, chunksize:int=10**6, 
         return get_needed_data(month_files, columns, parse_dates)
 
 
-def compute_by_chunk(chunks, function, **kargs):
-    results = []
-    for df in tqdm(chunks):
-        results.append(function(df, **kargs))
-    return results
-
-
 def clean_memory(garbage:list):
     size = len(garbage)
     for i in range(size-1, -1, -1):
