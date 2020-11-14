@@ -200,11 +200,13 @@ def average_time_cart(columns:list):
     clean_memory([carts, purchases])
     last_session_op = pd.concat(last_session_op_list).groupby('user_session').max()
     time_deltas = 0
-    for session, max_time in last_session_op.items():
-        # time_deltas += pending_carts[pending_carts.user_session == session].event_time_x.apply(lambda x: (max_time - x).total_seconds()).sum()
-        for time in pending_carts[pending_carts.user_session == session]['event_time_x']:
-            time_deltas += (max_time - time).total_seconds()
-    print(f'The average time an item stays in the cart before being removed is {round(time_deltas / pending_carts.size, 2)} seconds.')
+    print(last_session_op.info())
+    print(pending_carts.info())
+    # for session, max_time in last_session_op.items():
+    #     # time_deltas += pending_carts[pending_carts.user_session == session].event_time_x.apply(lambda x: (max_time - x).total_seconds()).sum()
+    #     for time in pending_carts[pending_carts.user_session == session]['event_time_x']:
+    #         time_deltas += (max_time - time).total_seconds()
+    # print(f'The average time an item stays in the cart before being removed is {round(time_deltas / pending_carts.size, 2):,} seconds.')
 
 
 
@@ -231,25 +233,23 @@ def average_time_after_first_view_1(columns:list):
     st_dev = 0
     for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
         st_dev += ((t_purchases_carts - t_views).total_seconds() - mean)**2
-    st_dev = round(np.sqrt(st_dev / joined.size), 2) 
+    st_dev = round(np.sqrt(st_dev / (joined.size - 1)), 2) 
     print(f'The average time between the first view time and a purchase/addition to cart is {round(mean / 3600, 2)} hours.\nThe standard deviation is {round(st_dev / 3600, 2)} hours.') # we convert the time from seconds to hours
 
 
 
 def average_time_after_first_view_2(columns:list):
     global month_files
-    user_views_p_min_list = []
-    user_purchases_carts_p_min_list = []
+    user_views_min = pd.DataFrame()
+    user_purchases_carts_min = pd.DataFrame()
     dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=['event_time'])
     for iterator in dataset_iterators:
-        for dataset in iterator:
-            user_views_p_min_list.append(dataset[dataset.event_type == 'view'][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
-            user_purchases_carts_p_min_list.append(dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
+        for dataset in tqdm(iterator):
+            user_views_min = pd.concat([user_views_min, dataset[dataset.event_type == 'view'][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min()])
+            user_purchases_carts_min = pd.concat([user_purchases_carts_min, dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min()])
             clean_memory([dataset, ])
-    user_views_min = pd.concat(user_views_p_min_list).groupby(['user_id', 'product_id']).min()
-    clean_memory(user_views_p_min_list)
-    user_purchases_carts_min = pd.concat(user_purchases_carts_p_min_list).groupby(['user_id', 'product_id']).min()
-    clean_memory(user_purchases_carts_p_min_list)
+    user_views_min = user_views_min.groupby(['user_id', 'product_id']).min()
+    user_purchases_carts_min = user_purchases_carts_min.groupby(['user_id', 'product_id']).min()
     joined = user_views_min.to_frame().merge(user_purchases_carts_min.to_frame(), on=['user_id', 'product_id'], suffixes=['_views', '_purchases_carts'])
     sum_deltas = 0
     for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
@@ -258,8 +258,8 @@ def average_time_after_first_view_2(columns:list):
     st_dev = 0
     for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
         st_dev += ((t_purchases_carts - t_views).total_seconds() - mean)**2
-    st_dev = round(np.sqrt(st_dev / joined.size), 2) 
-    print(f'The average time between the first view time and a purchase/addition to cart is {round(mean / 60, 2)} minutes.\nThe standard deviation is {round(st_dev / 60, 2)} minutes.') # we convert the time from seconds to hours
+    st_dev = round(np.sqrt(st_dev / (joined.size - 1)), 2) 
+    print(f'The average time between the first view time and a purchase/addition to cart is {round(mean / 60, 2):,} minutes.\nThe standard deviation is {round(st_dev / 60, 2):,} minutes.') # we convert the time from seconds to hours
 
 
 
@@ -293,7 +293,7 @@ def price_std_dev(columns:list):
             brand_products_list.append(dataset.drop_duplicates())
     brand_products = pd.concat(brand_products_list, ignore_index=True).drop_duplicates()
     std = brand_products.groupby('brand').price.mean().std()
-    print(f'The standard deviation of the average price of the products for each brand is {round(std, 2)}.')
+    print(f'The standard deviation of the average price of the products for each brand is {round(std, 2)}$.')
 
 
 
@@ -309,7 +309,21 @@ def top_n_two_months_losses(columns:list, month1:str, month2:str, n=3):
     diff_profit_list = diff_profit.items()
     diff_profit_list = sorted(diff_profit_list, key=lambda x: (x[1], x[0]))
     for i in range(n):
-        print(f'The brand \"{diff_profit_list[i][0]}\" lost {round(diff_profit_list[i][1] * -1)} between {month1} and {month2}.')
+        print(f'The brand \"{diff_profit_list[i][0]}\" lost {round(diff_profit_list[i][1] * -1, 2)}% between {month1} and {month2}.')
+
+
+def top_n_two_months_losses_abs(columns:list, month1:str, month2:str, n=3):
+    dataset_list = get_purchases(columns)
+    brands = pd.concat(dataset_list, ignore_index=True)
+    brands = brands[brands.brand.notna()].brand.unique()
+    diff_profit = dict.fromkeys(brands)
+    for brand in brands:
+        profit = get_profit_per_month(brand, dataset_list)
+        diff_profit[brand] = profit[month2] - profit[month1]
+    diff_profit_list = diff_profit.items()
+    diff_profit_list = sorted(diff_profit_list, key=lambda x: (x[1], x[0]))
+    for i in range(n):
+        print(f'The brand \"{diff_profit_list[i][0]}\" lost {round(diff_profit_list[i][1] * -1, 2):,.2f}$ between {month1} and {month2}.')
 
             
 
