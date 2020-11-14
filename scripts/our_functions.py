@@ -350,6 +350,53 @@ def most_sold_per_cat():
     for category_code, t in  p.groupby('category_code'):
         print(category_code)
         print(t.groupby('product_id').user_session.count().nlargest(10))
+        
+########## RQ3 ############################################################################################################
+## ***** For each category, what’s the brand whose prices are higher on average?
+# General overview of the average price by brand foe each category.
+def avg_price_by_brand():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    ds10 = pd.read_csv("2019-Oct.csv")
+    ds11 = pd.read_csv("2019-Nov.csv")
+    dstot = pd.concat([ds10, ds11])
+    
+    dstot_grouped2 = dstot.groupby(["category_code", "brand"])["price"].mean()
+    print(dstot_grouped2, "\n\n\n")
+    
+    return
+
+## ***** Write a function that asks the user a category in input and returns a plot indicating the average price of the products sold by the brand.
+def avg_price_by_brand_cat():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    ds10 = pd.read_csv("2019-Oct.csv")
+    ds11 = pd.read_csv("2019-Nov.csv")
+    dstot = pd.concat([ds10, ds11])
+    
+    print("Enter the category_code whose average price by brand you want to know")
+    cat = input()
+    dstot_grouped1 = dstot[dstot["category_code"]==cat].groupby("brand")["price"].mean()
+    dstot_grouped1.plot.bar(figsize=(50, 20))
+    plt.show()
+    
+    return
+
+## ***** Find, for each category, the brand with the highest average price. Return all the results in ascending order by price.
+def highest_avg_price_brand():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    ds10 = pd.read_csv("2019-Oct.csv")
+    ds11 = pd.read_csv("2019-Nov.csv")
+    dstot = pd.concat([ds10, ds11])
+    
+    dstot_grouped2 = dstot.groupby(["category_code", "brand"])["price"].mean()
+    print(dstot_grouped2.groupby("category_code").max().sort_values())
+    
+    return
 
 ########## RQ4 ############################################################################################################
 
@@ -456,6 +503,65 @@ def havg_visit():
     axes[0].set_title('October')
     sns.heatmap(med_nov, ax=axes[1], vmax=200000)
     axes[1].set_title('November')
+    
+########## RQ6 ############################################################################################################
+
+## ***** What's the conversion rate of your online store? Find the overall conversion rate of your store.
+def conv_rate_store():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    ds10 = pd.read_csv("2019-Oct.csv")
+    ds11 = pd.read_csv("2019-Nov.csv")
+    dstot = pd.concat([ds10, ds11])
+    
+    # October
+    npurchase10 = ds10[ds10["event_type"]=="purchase"]["event_type"].count()
+    nview10 = ds10[ds10["event_type"]=="view"]["event_type"].count()
+    # November
+    npurchase11 = ds11[ds11["event_type"]=="purchase"]["event_type"].count()
+    nview11 = ds11[ds11["event_type"]=="view"]["event_type"].count()
+    # Overall conversion rate of the online store (October and November)
+    print("Conversion rate of online store (Oct. and Nov.) :", (npurchase10 + npurchase11)/(nview10 + nview11), "\n\n")
+
+    return
+
+## ***** Plot the number of purchases of each category. 
+def purchases_cat():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    ds10 = pd.read_csv("2019-Oct.csv")
+    ds11 = pd.read_csv("2019-Nov.csv")
+    dstot = pd.concat([ds10, ds11])
+    
+    dstot_grouped = dstot[dstot["event_type"]=="purchase"].groupby("category_code")["event_type"].count()
+    dstot_grouped.plot.bar(figsize=(60, 30))
+    plt.show()
+    
+    return
+
+## ***** Show the conversion rate of each category in decreasing order.
+def cv_rate_cat():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    ds10 = pd.read_csv("2019-Oct.csv")
+    ds11 = pd.read_csv("2019-Nov.csv")
+    dstot = pd.concat([ds10, ds11])
+    
+    # Function to be used in the end in apply
+    def conv_rate(x):
+        cr = x[0]/x[1]
+        
+        return cr
+    
+    dstot_groupedp = dstot[dstot["event_type"]=="purchase"].groupby("category_code")["event_type"].count()
+    dstot_groupedv = dstot[dstot["event_type"]=="view"].groupby("category_code")["event_type"].count()
+    dstot_merge = pd.merge(dstot_groupedp, dstot_groupedv, on="category_code")
+    print(dstot_merge.apply(conv_rate, axis=1).sort_values(ascending=False))
+    
+    return
 
 ########## RQ7 ############################################################################################################
 
