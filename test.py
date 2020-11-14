@@ -9,7 +9,7 @@ import scripts.our_functions as f
 
 # f.average_views_before_cart(['user_id', 'product_id', 'event_type', 'event_time'])
 
-# f.probability_purchase(['user_session', 'product_id', 'event_type', 'event_time'])
+# f.probability_purchase(['user_session', 'product_id', 'event_type'])
 
 f.average_time_cart(['event_type', 'user_session', 'product_id', 'event_time'])
 

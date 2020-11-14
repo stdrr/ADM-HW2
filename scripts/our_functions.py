@@ -101,7 +101,7 @@ def complete_funnels(columns:list):
     completed = [0.0] * 2
     completed[0] = (n_purchases - n_one_click) / (total_records - n_purchases - n_carts) * 100 # completed without one_click purchases
     completed[1] = n_purchases / (total_records - n_purchases - n_carts) * 100 # completed with one_click purchases
-    print(f'Rate of complete funnels without one_click purchases:\t{completed[0]}.\n\nRate of complete funnels with one_click purchases:\t{completed[1]}.')
+    print(f'Rate of complete funnels without one_click purchases:\t{round(completed[0], 2)}%.\n\nRate of complete funnels with one_click purchases:\t{round(completed[1], 2)}%.')
 
 
 
@@ -119,7 +119,7 @@ def average_number_operations(columns:list):
             sessions_list.append(dataset['user_session'].drop_duplicates())
             clean_memory([dataset, ])
     n_sessions = pd.concat(sessions_list, ignore_index=True).drop_duplicates().size
-    print(f'{n_views} views, {n_carts} carts, {n_purchases} purchases. {n_sessions} sessions.')
+    print(f'{round(n_views / n_sessions)} views, {round(n_carts / n_sessions)} carts, {round(n_purchases / n_sessions)} purchases. {n_sessions} sessions.\n\n')
     plt.figure(figsize=(8,6))
     plt.bar(['views', 'carts', 'purchases'], [round(n_views / n_sessions, 2), round(n_carts / n_sessions, 2), round(n_purchases / n_sessions, 2)])
     plt.title('Average number for each operation within a session')
@@ -153,7 +153,7 @@ def average_views_before_cart(columns:list):
     clean_memory(views_carts_list)
     avg = views_carts.groupby(['user_id', 'product_id']).event_time_view.count().mean()
     clean_memory([views_carts,])
-    print(f'On average a user views a product {round(avg, 2)} times before adding it to the cart.')
+    print(f'On average a user views a product {round(avg)} times before adding it to the cart.')
 
 
 
@@ -172,9 +172,10 @@ def probability_purchase(columns:list):
     purchases = pd.concat(purchases_list, ignore_index=True)
     clean_memory(purchases_list)
     carts_purchases = carts.merge(purchases.drop_duplicates(), on=['user_session', 'product_id'], how='left', indicator=True)
+    n_carts = carts.size
     clean_memory([carts, purchases])
     n_purchased = carts_purchases[carts_purchases._merge == 'both'].size
-    print(f'The probability that products added once to the cart are effectively bought is {round(n_purchased / carts_purchases.size * 100, 2)}.')
+    print(f'The probability that products added once to the cart are effectively bought is {round(n_purchased / n_carts * 100, 2)}%.') # carts_purchases.size
 
 
 
@@ -200,19 +201,21 @@ def average_time_cart(columns:list):
     last_session_op = pd.concat(last_session_op_list).groupby('user_session').max()
     time_deltas = 0
     for session, max_time in last_session_op.items():
-        time_deltas += pending_carts[pending_carts.user_session == session].event_time.apply(lambda x: (x-max_time).total_seconds()).sum()
+        # time_deltas += pending_carts[pending_carts.user_session == session].event_time_x.apply(lambda x: (max_time - x).total_seconds()).sum()
+        for time in pending_carts[pending_carts.user_session == session]['event_time_x']:
+            time_deltas += (max_time - time).total_seconds()
     print(f'The average time an item stays in the cart before being removed is {round(time_deltas / pending_carts.size, 2)} seconds.')
 
 
 
 ## ***** How much time passes on average between the first view time and a purchase/addition to cart?
-def average_time_after_first_view(columns:list):
+def average_time_after_first_view_1(columns:list):
     global month_files
     user_views_p_min_list = []
     user_purchases_carts_p_min_list = []
     dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=['event_time'])
     for iterator in dataset_iterators:
-        for dataset in tqdm(iterator):
+        for dataset in iterator:
             user_views_p_min_list.append(dataset[dataset.event_type == 'view'][['user_id', 'event_time']].groupby('user_id').event_time.min())
             user_purchases_carts_p_min_list.append(dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'event_time']].groupby('user_id').event_time.min())
             clean_memory([dataset, ])
@@ -224,7 +227,39 @@ def average_time_after_first_view(columns:list):
     sum_deltas = 0
     for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
         sum_deltas += (t_purchases_carts - t_views).total_seconds()
-    print(f'The average time between the first view time and a purchase/addition to cart is {round((sum_deltas / joined.size) / 3600)} hours.') # we convert the time from seconds to hours
+    mean = round(sum_deltas / joined.size, 2)
+    st_dev = 0
+    for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
+        st_dev += ((t_purchases_carts - t_views).total_seconds() - mean)**2
+    st_dev = round(np.sqrt(st_dev / joined.size), 2) 
+    print(f'The average time between the first view time and a purchase/addition to cart is {round(mean / 3600, 2)} hours.\nThe standard deviation is {round(st_dev / 3600, 2)} hours.') # we convert the time from seconds to hours
+
+
+
+def average_time_after_first_view_2(columns:list):
+    global month_files
+    user_views_p_min_list = []
+    user_purchases_carts_p_min_list = []
+    dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=['event_time'])
+    for iterator in dataset_iterators:
+        for dataset in iterator:
+            user_views_p_min_list.append(dataset[dataset.event_type == 'view'][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
+            user_purchases_carts_p_min_list.append(dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
+            clean_memory([dataset, ])
+    user_views_min = pd.concat(user_views_p_min_list).groupby(['user_id', 'product_id']).min()
+    clean_memory(user_views_p_min_list)
+    user_purchases_carts_min = pd.concat(user_purchases_carts_p_min_list).groupby(['user_id', 'product_id']).min()
+    clean_memory(user_purchases_carts_p_min_list)
+    joined = user_views_min.to_frame().merge(user_purchases_carts_min.to_frame(), on=['user_id', 'product_id'], suffixes=['_views', '_purchases_carts'])
+    sum_deltas = 0
+    for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
+        sum_deltas += (t_purchases_carts - t_views).total_seconds()
+    mean = round(sum_deltas / joined.size, 2)
+    st_dev = 0
+    for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
+        st_dev += ((t_purchases_carts - t_views).total_seconds() - mean)**2
+    st_dev = round(np.sqrt(st_dev / joined.size), 2) 
+    print(f'The average time between the first view time and a purchase/addition to cart is {round(mean / 60, 2)} minutes.\nThe standard deviation is {round(st_dev / 60, 2)} minutes.') # we convert the time from seconds to hours
 
 
 
