@@ -200,13 +200,11 @@ def average_time_cart(columns:list):
     clean_memory([carts, purchases])
     last_session_op = pd.concat(last_session_op_list).groupby('user_session').max()
     time_deltas = 0
-    print(last_session_op)
-    print(pending_carts.info())
-    # for session, max_time in last_session_op.items():
-    #     # time_deltas += pending_carts[pending_carts.user_session == session].event_time_x.apply(lambda x: (max_time - x).total_seconds()).sum()
-    #     for time in pending_carts[pending_carts.user_session == session]['event_time_x']:
-    #         time_deltas += (max_time - time).total_seconds()
-    # print(f'The average time an item stays in the cart before being removed is {round(time_deltas / pending_carts.size, 2):,} seconds.')
+    for session, max_time in last_session_op.items():
+        # time_deltas += pending_carts[pending_carts.user_session == session].event_time_x.apply(lambda x: (max_time - x).total_seconds()).sum()
+        for time in pending_carts[pending_carts.user_session == session]['event_time_x']:
+            time_deltas += (max_time - time).total_seconds()
+    print(f'The average time an item stays in the cart before being removed is {round(time_deltas / pending_carts.size, 2):,.2f} seconds.')
 
 
 
@@ -242,16 +240,17 @@ def average_time_after_first_view_2(columns:list):
     global month_files
     user_views_p_min_list = []
     user_purchases_carts_p_min_list = []
-    dataset_iterators = load_data(month_files, columns, chunk=True, chunksize=10**7, parse_dates=['event_time'])
-    for iterator in dataset_iterators:
-        for dataset in iterator:
-            user_views_p_min_list.append(dataset[dataset.event_type == 'view'][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
-            user_purchases_carts_p_min_list.append(dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
-            del dataset
-    user_purchases_carts_min = pd.concat(user_purchases_carts_p_min_list).groupby(['user_id', 'product_id']).min()
-    del user_purchases_carts_p_min_list
+    dataset_iterators = load_data(month_files, columns, chunk=True, chunksize=2*10**7, parse_dates=['event_time'])
+    with open('../data/views_p_min.csv', 'a') as v_f, open('../data/cart_purchases_p_min.csv', 'a') as cp_f:
+        for iterator in dataset_iterators:
+            for dataset in tqdm(iterator):
+                user_views_p_min_list.append(dataset[dataset.event_type == 'view'][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
+                user_purchases_carts_p_min_list.append(dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
+                del dataset
     user_views_min = pd.concat(user_views_p_min_list).groupby(['user_id', 'product_id']).min()
     del user_views_p_min_list
+    user_purchases_carts_min = pd.concat(user_purchases_carts_p_min_list).groupby(['user_id', 'product_id']).min()
+    del user_purchases_carts_p_min_list
     joined = user_views_min.to_frame().merge(user_purchases_carts_min.to_frame(), on=['user_id', 'product_id'], suffixes=['_views', '_purchases_carts'])
     sum_deltas = 0
     for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
@@ -318,8 +317,11 @@ def price_std_dev(columns:list):
         for dataset in iterator:
             brand_products_list.append(dataset.drop_duplicates())
     brand_products = pd.concat(brand_products_list, ignore_index=True).drop_duplicates()
-    std = brand_products.groupby('brand').price.mean().std()
-    print(f'The standard deviation of the average price of the products for each brand is {round(std, 2)}$.')
+    brand_means = brand_products.groupby('brand').price.mean()
+    mean = brand_means.mean()
+    std = brand_means.std()
+    print(f'The mean of the average price of the products for each brand is {round(mean, 2):,.2f}$,\nwith a standard deviation of {round(std, 2):,.2f}$.')
+    return brand_means
 
 
 

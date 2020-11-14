@@ -24,3 +24,5 @@ f.average_time_cart(['event_type', 'user_session', 'product_id', 'event_time'])
 # f.prove_pareto(['event_type', 'user_id', 'price'])
 
 # f.prove_pareto_ops(['user_id'])
+
+# f.average_time_after_first_view_2(['event_type', 'event_time', 'user_id', 'product_id'])
