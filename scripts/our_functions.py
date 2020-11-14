@@ -30,7 +30,7 @@ def get_needed_data(month_files:list, columns:list, parse_dates=False, concat=Tr
     return dataframes
 
 
-def get_needed_iterator(month_files:list, columns:list, chunksize:int=10**6, parse_dates=False):
+def get_needed_iterator(month_files:list, columns:list, chunksize:int=10**7, parse_dates=False):
     global DATA_PATH, dtype
     iterators = []
     date_parser = pd.to_datetime if parse_dates else None
@@ -120,11 +120,12 @@ def average_number_operations(columns:list):
             clean_memory([dataset, ])
     n_sessions = pd.concat(sessions_list, ignore_index=True).drop_duplicates().size
     print(f'{round(n_views / n_sessions)} views, {round(n_carts / n_sessions)} carts, {round(n_purchases / n_sessions)} purchases. {n_sessions} sessions.\n\n')
-    plt.figure(figsize=(8,6))
+    plt.figure(figsize=(8,8))
     plt.bar(['views', 'carts', 'purchases'], [round(n_views / n_sessions, 2), round(n_carts / n_sessions, 2), round(n_purchases / n_sessions, 2)])
     plt.title('Average number for each operation within a session')
     plt.xlabel('Operation')
     plt.ylabel('Frequency')
+    plt.grid()
     plt.show()
 
 
