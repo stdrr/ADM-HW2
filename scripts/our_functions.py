@@ -463,7 +463,7 @@ def top_n_two_months_losses_abs(columns:list, month1:str, month2:str, n=3):
         print(f'The brand \"{diff_profit_list[i][0]}\" lost {round(diff_profit_list[i][1] * -1, 2):,.2f}$ between {month1} and {month2}.')
 
 
-########## RQ6 ############################################################################################################
+########## RQ5 ############################################################################################################
 ## ***** hourly average of visitors for each day of the week
 def havg_visit():
     import pandas as pd
