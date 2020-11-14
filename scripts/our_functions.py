@@ -200,7 +200,7 @@ def average_time_cart(columns:list):
     clean_memory([carts, purchases])
     last_session_op = pd.concat(last_session_op_list).groupby('user_session').max()
     time_deltas = 0
-    print(last_session_op.info())
+    print(last_session_op)
     print(pending_carts.info())
     # for session, max_time in last_session_op.items():
     #     # time_deltas += pending_carts[pending_carts.user_session == session].event_time_x.apply(lambda x: (max_time - x).total_seconds()).sum()
@@ -240,16 +240,18 @@ def average_time_after_first_view_1(columns:list):
 
 def average_time_after_first_view_2(columns:list):
     global month_files
-    user_views_min = pd.DataFrame()
-    user_purchases_carts_min = pd.DataFrame()
-    dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=['event_time'])
+    user_views_p_min_list = []
+    user_purchases_carts_p_min_list = []
+    dataset_iterators = load_data(month_files, columns, chunk=True, chunksize=10**7, parse_dates=['event_time'])
     for iterator in dataset_iterators:
-        for dataset in tqdm(iterator):
-            user_views_min = pd.concat([user_views_min, dataset[dataset.event_type == 'view'][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min()])
-            user_purchases_carts_min = pd.concat([user_purchases_carts_min, dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min()])
-            clean_memory([dataset, ])
-    user_views_min = user_views_min.groupby(['user_id', 'product_id']).min()
-    user_purchases_carts_min = user_purchases_carts_min.groupby(['user_id', 'product_id']).min()
+        for dataset in iterator:
+            user_views_p_min_list.append(dataset[dataset.event_type == 'view'][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
+            user_purchases_carts_p_min_list.append(dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
+            del dataset
+    user_purchases_carts_min = pd.concat(user_purchases_carts_p_min_list).groupby(['user_id', 'product_id']).min()
+    del user_purchases_carts_p_min_list
+    user_views_min = pd.concat(user_views_p_min_list).groupby(['user_id', 'product_id']).min()
+    del user_views_p_min_list
     joined = user_views_min.to_frame().merge(user_purchases_carts_min.to_frame(), on=['user_id', 'product_id'], suffixes=['_views', '_purchases_carts'])
     sum_deltas = 0
     for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
@@ -258,8 +260,32 @@ def average_time_after_first_view_2(columns:list):
     st_dev = 0
     for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
         st_dev += ((t_purchases_carts - t_views).total_seconds() - mean)**2
-    st_dev = round(np.sqrt(st_dev / (joined.size - 1)), 2) 
-    print(f'The average time between the first view time and a purchase/addition to cart is {round(mean / 60, 2):,} minutes.\nThe standard deviation is {round(st_dev / 60, 2):,} minutes.') # we convert the time from seconds to hours
+    st_dev = round(np.sqrt(st_dev / joined.size), 2) 
+    print(f'The average time between the first view time and a purchase/addition to cart is {round(mean / 60, 2)} minutes.\nThe standard deviation is {round(st_dev / 60, 2)} minutes.') # we convert the time from seconds to hours
+
+
+# def average_time_after_first_view_2(columns:list):
+#     global month_files
+#     user_views_min = pd.DataFrame()
+#     user_purchases_carts_min = pd.DataFrame()
+#     dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=['event_time'])
+#     for iterator in dataset_iterators:
+#         for dataset in tqdm(iterator):
+#             user_views_min = pd.concat([user_views_min, dataset[dataset.event_type == 'view'][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min()])
+#             user_purchases_carts_min = pd.concat([user_purchases_carts_min, dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min()])
+#             clean_memory([dataset, ])
+#     user_views_min = user_views_min.groupby(['user_id', 'product_id']).min()
+#     user_purchases_carts_min = user_purchases_carts_min.groupby(['user_id', 'product_id']).min()
+#     joined = user_views_min.to_frame().merge(user_purchases_carts_min.to_frame(), on=['user_id', 'product_id'], suffixes=['_views', '_purchases_carts'])
+#     sum_deltas = 0
+#     for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
+#         sum_deltas += (t_purchases_carts - t_views).total_seconds()
+#     mean = round(sum_deltas / joined.size, 2)
+#     st_dev = 0
+#     for t_views, t_purchases_carts in zip(joined['event_time_views'], joined['event_time_purchases_carts']):
+#         st_dev += ((t_purchases_carts - t_views).total_seconds() - mean)**2
+#     st_dev = round(np.sqrt(st_dev / (joined.size - 1)), 2) 
+#     print(f'The average time between the first view time and a purchase/addition to cart is {round(mean / 60, 2):,} minutes.\nThe standard deviation is {round(st_dev / 60, 2):,} minutes.') # we convert the time from seconds to hours
 
 
 
