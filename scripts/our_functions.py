@@ -30,7 +30,7 @@ def get_needed_data(month_files:list, columns:list, parse_dates=False, concat=Tr
     return dataframes
 
 
-def get_needed_iterator(month_files:list, columns:list, chunksize:int=10**7, parse_dates=False):
+def get_needed_iterator(month_files:list, columns:list, chunksize:int=10**6, parse_dates=False):
     global DATA_PATH, dtype
     iterators = []
     date_parser = pd.to_datetime if parse_dates else None
@@ -39,7 +39,7 @@ def get_needed_iterator(month_files:list, columns:list, chunksize:int=10**7, par
     return iterators
 
 
-def load_data(month_files:list, columns:list, chunk=False, chunksize:int=10**6, parse_dates=False):
+def load_data(month_files:list, columns:list, chunk=False, chunksize:int=10**7, parse_dates=False):
     if chunk:
         return get_needed_iterator(month_files, columns, chunksize, parse_dates)
     else:
@@ -90,7 +90,6 @@ def complete_funnels(columns:list):
     n_one_click = purchases_carts[purchases_carts._merge == 'left_only'].size
     clean_memory([purchases_carts, ])
     print(f'There are {n_purchases} purchases,\nof which {n_one_click} one_click purchases (only view-purchase couples).\nThe number of carts is {n_carts}.', end='\n'*3)
-    # completed = (n_purchases - n_one_click) / (total_records - 3*(n_purchases - n_one_click) - 2*(n_carts + n_one_click - n_purchases) - 2*n_one_click) * 100
     completed = [0.0] * 2
     completed[0] = (n_purchases - n_one_click) / (total_records - n_purchases - n_carts) * 100 # completed without one_click purchases
     completed[1] = n_purchases / (total_records - n_purchases - n_carts) * 100 # completed with one_click purchases
@@ -112,13 +111,13 @@ def average_number_operations(columns:list):
             sessions_list.append(dataset['user_session'].drop_duplicates())
             clean_memory([dataset, ])
     n_sessions = pd.concat(sessions_list, ignore_index=True).drop_duplicates().size
-    print(f'{round(n_views / n_sessions)} views, {round(n_carts / n_sessions)} carts, {round(n_purchases / n_sessions)} purchases. {n_sessions} sessions.\n\n')
+    print(f'{round(n_views / n_sessions, 2)} views, {round(n_carts / n_sessions, 2)} carts, {round(n_purchases / n_sessions, 2)} purchases. {n_sessions:,} sessions.\n\n')
     plt.figure(figsize=(8,8))
     plt.bar(['views', 'carts', 'purchases'], [round(n_views / n_sessions, 2), round(n_carts / n_sessions, 2), round(n_purchases / n_sessions, 2)])
     plt.title('Average number for each operation within a session')
     plt.xlabel('Operation')
     plt.ylabel('Frequency')
-    plt.grid()
+    plt.grid(axis='y')
     plt.show()
 
 
@@ -182,8 +181,8 @@ def average_time_cart(columns:list):
     dataset_iterators = load_data(month_files, columns, chunk=True, parse_dates=['event_time'])
     for iterator in dataset_iterators:
         for dataset in tqdm(iterator):
-            carts_list.append(dataset[dataset.event_type == 'cart'])
-            purchases_list.append(dataset[dataset.event_type == 'purchase'])
+            carts_list.append(dataset[dataset.event_type == 'cart'][['user_session', 'product_id', 'event_time']])
+            purchases_list.append(dataset[dataset.event_type == 'purchase'][['user_session', 'product_id', 'event_time']])
             last_session_op_list.append(dataset.groupby('user_session').event_time.max())
             clean_memory([dataset, ])
     carts = pd.concat(carts_list, ignore_index=True)
@@ -193,6 +192,7 @@ def average_time_cart(columns:list):
     pending_carts = pending_carts[pending_carts._merge == 'left_only']
     clean_memory([carts, purchases])
     last_session_op = pd.concat(last_session_op_list).groupby('user_session').max()
+    del last_session_op_list
     time_deltas = 0
     for session, max_time in last_session_op.items():
         # time_deltas += pending_carts[pending_carts.user_session == session].event_time_x.apply(lambda x: (max_time - x).total_seconds()).sum()
@@ -235,12 +235,11 @@ def average_time_after_first_view_2(columns:list):
     user_views_p_min_list = []
     user_purchases_carts_p_min_list = []
     dataset_iterators = load_data(month_files, columns, chunk=True, chunksize=2*10**7, parse_dates=['event_time'])
-    with open('../data/views_p_min.csv', 'a') as v_f, open('../data/cart_purchases_p_min.csv', 'a') as cp_f:
-        for iterator in dataset_iterators:
-            for dataset in tqdm(iterator):
-                user_views_p_min_list.append(dataset[dataset.event_type == 'view'][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
-                user_purchases_carts_p_min_list.append(dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
-                del dataset
+    for iterator in dataset_iterators:
+        for dataset in tqdm(iterator):
+            user_views_p_min_list.append(dataset[dataset.event_type == 'view'][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
+            user_purchases_carts_p_min_list.append(dataset[(dataset.event_type == 'cart') | (dataset.event_type == 'purchase')][['user_id', 'product_id', 'event_time']].groupby(['user_id', 'product_id']).event_time.min())
+            del dataset
     user_views_min = pd.concat(user_views_p_min_list).groupby(['user_id', 'product_id']).min()
     del user_views_p_min_list
     user_purchases_carts_min = pd.concat(user_purchases_carts_p_min_list).groupby(['user_id', 'product_id']).min()
