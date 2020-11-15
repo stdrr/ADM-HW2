@@ -350,6 +350,58 @@ def most_sold_per_cat():
         print(category_code)
         print(t.groupby('product_id').user_session.count().nlargest(10))
 
+
+
+########## RQ3 ############################################################################################################
+## ***** For each category, what’s the brand whose prices are higher on average?
+# General overview of the average price by brand foe each category.
+def avg_price_by_brand():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    ds10 = pd.read_csv("2019-Oct.csv")
+    ds11 = pd.read_csv("2019-Nov.csv")
+    dstot = pd.concat([ds10, ds11])
+    
+    dstot_grouped2 = dstot.groupby(["category_code", "brand"])["price"].mean()
+    print(dstot_grouped2, "\n\n\n")
+    
+    return
+
+## ***** Write a function that asks the user a category in input and returns a plot indicating the average price of the products sold by the brand.
+def avg_price_by_brand_cat():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    ds10 = pd.read_csv("2019-Oct.csv")
+    ds11 = pd.read_csv("2019-Nov.csv")
+    dstot = pd.concat([ds10, ds11])
+    
+    print("Enter the category_code whose average price by brand you want to know")
+    cat = input()
+    dstot_grouped1 = dstot[dstot["category_code"]==cat].groupby("brand")["price"].mean()
+    dstot_grouped1.plot.bar(figsize=(50, 20))
+    plt.show()
+    
+    return
+
+## ***** Find, for each category, the brand with the highest average price. Return all the results in ascending order by price.
+def highest_avg_price_brand():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    ds10 = pd.read_csv("2019-Oct.csv")
+    ds11 = pd.read_csv("2019-Nov.csv")
+    dstot = pd.concat([ds10, ds11])
+    
+    dstot_grouped2 = dstot.groupby(["category_code", "brand"])["price"].mean()
+    print(dstot_grouped2.groupby("category_code").max().sort_values())
+    
+    return
+
+
+
+
 ########## RQ4 ############################################################################################################
 
 ## ***** How much does each brand earn per month? (WORKS)
@@ -415,6 +467,49 @@ def top_n_two_months_losses_abs(columns:list, month1:str, month2:str, n=3):
         print(f'The brand \"{diff_profit_list[i][0]}\" lost {round(diff_profit_list[i][1] * -1, 2):,.2f}$ between {month1} and {month2}.')
 
 
+
+########## RQ5 ############################################################################################################
+## ***** hourly average of visitors for each day of the week
+def havg_visit():
+    import pandas as pd
+
+    #import the data of October and parse the column event_time to datetime
+    data = pd.read_csv("2019-Oct.csv", #nrows=9000000, 
+                   parse_dates=['event_time'],
+                   date_parser=pd.to_datetime)
+
+    #import the data of November
+    data2 = pd.read_csv("2019-Nov.csv", #nrows=9000000, 
+                   parse_dates=['event_time'],
+                   date_parser=pd.to_datetime)
+
+    #concatenate the two datasets
+    fr=[data,data2]
+    data_tot=pd.concat(fr,ignore_index=True)
+    #Plot of the hourly average of visitors for each day of the week
+    import seaborn as sns
+    from matplotlib import pyplot as plt
+    sns.set()
+    # obtain two subsets of only the views for each month
+    view_ott=data[data.event_type=='view']
+    view_nov=data2[data2.event_type=='view']
+    #group the observations by day of the week and by hour of the day obtaining a matrix containing the numbers of views
+    sett_ott=view_ott.groupby([data.event_time.dt.weekday , data.event_time.dt.hour]).size().unstack().fillna(0)
+    sett_nov=view_nov.groupby([data2.event_time.dt.weekday , data2.event_time.dt.hour]).size().unstack().fillna(0)
+    #obtain the average number of visitors dividing each element of the matrix by 4 or by 5 according to the frequency of each weekday in each month
+    med_ott=[sett_ott[0:1]/4,sett_ott[1:4]/5,sett_ott[4:7]/4]
+    med_ott=pd.concat(med_ott)
+    med_nov=[sett_nov[0:4]/4,sett_nov[4:6]/5,sett_nov[6:7]/4]
+    med_nov=pd.concat(med_nov)
+    #plot the results in 2 subplots heatmaps where it's easy to visualize in wich part of the week the website is most visited 
+    fig, axes = plt.subplots(1,2)
+    fig.suptitle('Hourly average of visitors for each day of the week')
+    sns.heatmap(med_ott, ax=axes[0], vmax=200000)
+    axes[0].set_title('October')
+    sns.heatmap(med_nov, ax=axes[1], vmax=200000)
+    axes[1].set_title('November')
+
+
 ########## RQ6 ############################################################################################################
 ## ***** hourly average of visitors for each day of the week
 def havg_visit():
@@ -455,6 +550,8 @@ def havg_visit():
     axes[0].set_title('October')
     sns.heatmap(med_nov, ax=axes[1], vmax=200000)
     axes[1].set_title('November')
+
+
 
 ########## RQ7 ############################################################################################################
 
