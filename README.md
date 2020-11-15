@@ -7,5 +7,6 @@ In this homework, we were asked to analyze the [activity data](https://www.kaggl
 
 ## Content
 - **main.ipynb**: Jupyter notebook containing the results of our data analysis. [This link](https://nbviewer.jupyter.org/github/stdrr/ADM-HW2/blob/main/main.ipynb) is provided in case of plots rendering issues.
+- **test.py**: Python script for test sake.
 - **scripts/our_functions.py**: Python script containing all the custom functions we used to answer to each question.
 
