@@ -6,6 +6,6 @@
 In this homework, we were asked to analyze the [activity data](https://www.kaggle.com/mkechinov/ecommerce-behavior-data-from-multi-category-store?select=2019-Oct.csv) collected from an e-commerce platform during October and November 2019.   
 
 ## Content
-- **main.ipynb**: Jupyter notebook containing the results of our data analysis.
+- **main.ipynb**: Jupyter notebook containing the results of our data analysis. [This link](https://nbviewer.jupyter.org/github/stdrr/ADM-HW2/blob/main/main.ipynb) is provided in case of plots rendering issues.
 - **scripts/our_functions.py**: Python script containing all the custom functions we used to answer to each question.
 
