@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt 
+import seaborn as sns
 from tqdm import tqdm
 import datetime
 from threading import Thread
@@ -281,9 +282,9 @@ def average_time_after_first_view_2(columns:list):
 
 
 ########## RQ2 ############################################################################################################
+
 ## *****number of sold products per category
 def num_sold_per_cat():
-    import pandas as pd
     #import the data of October and parse the column event_time to datetime
     data = pd.read_csv("2019-Oct.csv", #nrows=9000000, 
                    parse_dates=['event_time'],
@@ -298,7 +299,6 @@ def num_sold_per_cat():
     fr=[data,data2]
     data_tot=pd.concat(fr,ignore_index=True)
     
-    import matplotlib as plt
     #plot showing the number of sold products per category
     # obtain a subset of only the purchases, group by category code, and count the number of sold product plotting the biggest 10 values
     rq2_main=data_tot[data_tot.event_type=='purchase'].groupby(data_tot.category_code).product_id.count().sort_values(ascending=False).head(10)
@@ -306,7 +306,6 @@ def num_sold_per_cat():
     
 ## ***** most visited subcategories
 def most_v_cat():
-    import pandas as pd
     #import the data of October and parse the column event_time to datetime
     data = pd.read_csv("2019-Oct.csv", #nrows=9000000, 
                    parse_dates=['event_time'],
@@ -328,7 +327,6 @@ def most_v_cat():
     
 ## *****The 10 most sold products per category
 def most_sold_per_cat():
-    import pandas as pd
     #import the data of October and parse the column event_time to datetime
     data = pd.read_csv("2019-Oct.csv", #nrows=9000000, 
                    parse_dates=['event_time'],
@@ -356,8 +354,6 @@ def most_sold_per_cat():
 ## ***** For each category, what’s the brand whose prices are higher on average?
 # General overview of the average price by brand foe each category.
 def avg_price_by_brand():
-    import pandas as pd
-    import matplotlib.pyplot as plt
 
     ds10 = pd.read_csv("2019-Oct.csv")
     ds11 = pd.read_csv("2019-Nov.csv")
@@ -370,8 +366,6 @@ def avg_price_by_brand():
 
 ## ***** Write a function that asks the user a category in input and returns a plot indicating the average price of the products sold by the brand.
 def avg_price_by_brand_cat():
-    import pandas as pd
-    import matplotlib.pyplot as plt
 
     ds10 = pd.read_csv("2019-Oct.csv")
     ds11 = pd.read_csv("2019-Nov.csv")
@@ -387,8 +381,6 @@ def avg_price_by_brand_cat():
 
 ## ***** Find, for each category, the brand with the highest average price. Return all the results in ascending order by price.
 def highest_avg_price_brand():
-    import pandas as pd
-    import matplotlib.pyplot as plt
 
     ds10 = pd.read_csv("2019-Oct.csv")
     ds11 = pd.read_csv("2019-Nov.csv")
@@ -471,7 +463,6 @@ def top_n_two_months_losses_abs(columns:list, month1:str, month2:str, n=3):
 ########## RQ5 ############################################################################################################
 ## ***** hourly average of visitors for each day of the week
 def havg_visit():
-    import pandas as pd
 
     #import the data of October and parse the column event_time to datetime
     data = pd.read_csv("2019-Oct.csv", #nrows=9000000, 
@@ -487,8 +478,6 @@ def havg_visit():
     fr=[data,data2]
     data_tot=pd.concat(fr,ignore_index=True)
     #Plot of the hourly average of visitors for each day of the week
-    import seaborn as sns
-    from matplotlib import pyplot as plt
     sns.set()
     # obtain two subsets of only the views for each month
     view_ott=data[data.event_type=='view']
@@ -513,7 +502,6 @@ def havg_visit():
 ########## RQ6 ############################################################################################################
 ## ***** hourly average of visitors for each day of the week
 def havg_visit():
-    import pandas as pd
 
     #import the data of October and parse the column event_time to datetime
     data = pd.read_csv("2019-Oct.csv", #nrows=9000000, 
@@ -529,8 +517,6 @@ def havg_visit():
     fr=[data,data2]
     data_tot=pd.concat(fr,ignore_index=True)
     #Plot of the hourly average of visitors for each day of the week
-    import seaborn as sns
-    from matplotlib import pyplot as plt
     sns.set()
     # obtain two subsets of only the views for each month
     view_ott=data[data.event_type=='view']
