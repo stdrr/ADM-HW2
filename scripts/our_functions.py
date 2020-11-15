@@ -285,15 +285,17 @@ def average_time_after_first_view_2(columns:list):
 
 ## *****number of sold products per category
 def num_sold_per_cat():
+    global DATA_PATH
+    cols = ['event_type', 'category_code', 'product_id']
     #import the data of October and parse the column event_time to datetime
-    data = pd.read_csv("2019-Oct.csv", #nrows=9000000, 
-                   parse_dates=['event_time'],
-                   date_parser=pd.to_datetime)
+    data = pd.read_csv(DATA_PATH + "2019-Oct.csv",
+                    dtype={'product_id':np.int32},
+                    usecols=cols)
 
     #import the data of November
-    data2 = pd.read_csv("2019-Nov.csv", #nrows=9000000, 
-                   parse_dates=['event_time'],
-                   date_parser=pd.to_datetime)
+    data2 = pd.read_csv(DATA_PATH + "2019-Nov.csv",
+                    dtype={'product_id':np.int32},
+                    usecols=cols)
 
     #concatenate the two datasets
     fr=[data,data2]
@@ -306,15 +308,15 @@ def num_sold_per_cat():
     
 ## ***** most visited subcategories
 def most_v_cat():
+    global DATA_PATH
+    cols = ['event_type', 'category_code']
     #import the data of October and parse the column event_time to datetime
-    data = pd.read_csv("2019-Oct.csv", #nrows=9000000, 
-                   parse_dates=['event_time'],
-                   date_parser=pd.to_datetime)
+    data = pd.read_csv(DATA_PATH + "2019-Oct.csv",
+                   usecols=cols)
 
     #import the data of November
-    data2 = pd.read_csv("2019-Nov.csv", #nrows=9000000, 
-                   parse_dates=['event_time'],
-                   date_parser=pd.to_datetime)
+    data2 = pd.read_csv(DATA_PATH + "2019-Nov.csv",
+                   usecols=cols)
 
     #concatenate the two datasets
     fr=[data,data2]
@@ -327,15 +329,17 @@ def most_v_cat():
     
 ## *****The 10 most sold products per category
 def most_sold_per_cat():
+    global DATA_PATH
+    cols = ['event_type', 'category_code', 'product_id', 'user_session']
     #import the data of October and parse the column event_time to datetime
-    data = pd.read_csv("2019-Oct.csv", #nrows=9000000, 
-                   parse_dates=['event_time'],
-                   date_parser=pd.to_datetime)
+    data = pd.read_csv(DATA_PATH + "2019-Oct.csv",
+                    dtype={'product_id':np.int32},
+                    usecols=cols)
 
     #import the data of November
-    data2 = pd.read_csv("2019-Nov.csv", #nrows=9000000, 
-                   parse_dates=['event_time'],
-                   date_parser=pd.to_datetime)
+    data2 = pd.read_csv(DATA_PATH + "2019-Nov.csv", 
+                    dtype={'product_id':np.int32},
+                    usecols=cols)
 
     #concatenate the two datasets
     fr=[data,data2]
@@ -352,11 +356,12 @@ def most_sold_per_cat():
 
 ########## RQ3 ############################################################################################################
 ## ***** For each category, what’s the brand whose prices are higher on average?
-# General overview of the average price by brand foe each category.
+# General overview of the average price by brand for each category.
 def avg_price_by_brand():
-
-    ds10 = pd.read_csv("2019-Oct.csv")
-    ds11 = pd.read_csv("2019-Nov.csv")
+    global DATA_PATH
+    cols = ['category_code', 'brand', 'price']
+    ds10 = pd.read_csv(DATA_PATH + "2019-Oct.csv", usecols=cols, dtype={'price':np.float32})
+    ds11 = pd.read_csv(DATA_PATH + "2019-Nov.csv", usecols=cols, dtype={'price':np.float32})
     dstot = pd.concat([ds10, ds11])
     
     dstot_grouped2 = dstot.groupby(["category_code", "brand"])["price"].mean()
@@ -366,9 +371,10 @@ def avg_price_by_brand():
 
 ## ***** Write a function that asks the user a category in input and returns a plot indicating the average price of the products sold by the brand.
 def avg_price_by_brand_cat():
-
-    ds10 = pd.read_csv("2019-Oct.csv")
-    ds11 = pd.read_csv("2019-Nov.csv")
+    global DATA_PATH
+    cols = ['category_code', 'brand', 'price']
+    ds10 = pd.read_csv(DATA_PATH + "2019-Oct.csv", dtype={'price':np.float32}, usecols=cols)
+    ds11 = pd.read_csv(DATA_PATH + "2019-Nov.csv", dtype={'price':np.float32}, usecols=cols)
     dstot = pd.concat([ds10, ds11])
     
     print("Enter the category_code whose average price by brand you want to know")
@@ -381,9 +387,10 @@ def avg_price_by_brand_cat():
 
 ## ***** Find, for each category, the brand with the highest average price. Return all the results in ascending order by price.
 def highest_avg_price_brand():
-
-    ds10 = pd.read_csv("2019-Oct.csv")
-    ds11 = pd.read_csv("2019-Nov.csv")
+    global DATA_PATH
+    cols = ['category_code', 'brand', 'price']
+    ds10 = pd.read_csv(DATA_PATH + "2019-Oct.csv", dtype={'price':np.float32}, usecols=cols)
+    ds11 = pd.read_csv(DATA_PATH + "2019-Nov.csv", dtype={'price':np.float32}, usecols=cols)
     dstot = pd.concat([ds10, ds11])
     
     dstot_grouped2 = dstot.groupby(["category_code", "brand"])["price"].mean()
@@ -463,20 +470,20 @@ def top_n_two_months_losses_abs(columns:list, month1:str, month2:str, n=3):
 ########## RQ5 ############################################################################################################
 ## ***** hourly average of visitors for each day of the week
 def havg_visit():
-
+    global DATA_PATH
+    cols = ['event_time', 'event_type']
     #import the data of October and parse the column event_time to datetime
-    data = pd.read_csv("2019-Oct.csv", #nrows=9000000, 
+    data = pd.read_csv(DATA_PATH + "2019-Oct.csv", 
                    parse_dates=['event_time'],
-                   date_parser=pd.to_datetime)
+                   date_parser=pd.to_datetime,
+                   usecols=cols)
 
     #import the data of November
-    data2 = pd.read_csv("2019-Nov.csv", #nrows=9000000, 
+    data2 = pd.read_csv(DATA_PATH + "2019-Nov.csv", 
                    parse_dates=['event_time'],
-                   date_parser=pd.to_datetime)
+                   date_parser=pd.to_datetime,
+                   usecols=cols)
 
-    #concatenate the two datasets
-    fr=[data,data2]
-    data_tot=pd.concat(fr,ignore_index=True)
     #Plot of the hourly average of visitors for each day of the week
     sns.set()
     # obtain two subsets of only the views for each month
@@ -500,43 +507,56 @@ def havg_visit():
 
 
 ########## RQ6 ############################################################################################################
-## ***** hourly average of visitors for each day of the week
-def havg_visit():
 
-    #import the data of October and parse the column event_time to datetime
-    data = pd.read_csv("2019-Oct.csv", #nrows=9000000, 
-                   parse_dates=['event_time'],
-                   date_parser=pd.to_datetime)
+## ***** What's the conversion rate of your online store? Find the overall conversion rate of your store.
+def conv_rate_store():
+    global DATA_PATH
+    cols = ['event_type', ]
+    ds10 = pd.read_csv(DATA_PATH + "2019-Oct.csv", usecols=cols)
+    ds11 = pd.read_csv(DATA_PATH + "2019-Nov.csv", usecols=cols)
+    
+    # October
+    npurchase10 = ds10[ds10["event_type"]=="purchase"]["event_type"].count()
+    nview10 = ds10[ds10["event_type"]=="view"]["event_type"].count()
+    # November
+    npurchase11 = ds11[ds11["event_type"]=="purchase"]["event_type"].count()
+    nview11 = ds11[ds11["event_type"]=="view"]["event_type"].count()
+    # Overall conversion rate of the online store (October and November)
+    print("Conversion rate of online store (Oct. and Nov.) :", (npurchase10 + npurchase11)/(nview10 + nview11), "\n\n")
 
-    #import the data of November
-    data2 = pd.read_csv("2019-Nov.csv", #nrows=9000000, 
-                   parse_dates=['event_time'],
-                   date_parser=pd.to_datetime)
+    return
 
-    #concatenate the two datasets
-    fr=[data,data2]
-    data_tot=pd.concat(fr,ignore_index=True)
-    #Plot of the hourly average of visitors for each day of the week
-    sns.set()
-    # obtain two subsets of only the views for each month
-    view_ott=data[data.event_type=='view']
-    view_nov=data2[data2.event_type=='view']
-    #group the observations by day of the week and by hour of the day obtaining a matrix containing the numbers of views
-    sett_ott=view_ott.groupby([data.event_time.dt.weekday , data.event_time.dt.hour]).size().unstack().fillna(0)
-    sett_nov=view_nov.groupby([data2.event_time.dt.weekday , data2.event_time.dt.hour]).size().unstack().fillna(0)
-    #obtain the average number of visitors dividing each element of the matrix by 4 or by 5 according to the frequency of each weekday in each month
-    med_ott=[sett_ott[0:1]/4,sett_ott[1:4]/5,sett_ott[4:7]/4]
-    med_ott=pd.concat(med_ott)
-    med_nov=[sett_nov[0:4]/4,sett_nov[4:6]/5,sett_nov[6:7]/4]
-    med_nov=pd.concat(med_nov)
-    #plot the results in 2 subplots heatmaps where it's easy to visualize in wich part of the week the website is most visited 
-    fig, axes = plt.subplots(1,2)
-    fig.suptitle('Hourly average of visitors for each day of the week')
-    sns.heatmap(med_ott, ax=axes[0], vmax=200000)
-    axes[0].set_title('October')
-    sns.heatmap(med_nov, ax=axes[1], vmax=200000)
-    axes[1].set_title('November')
+## ***** Plot the number of purchases of each category. 
+def purchases_cat():
+    global DATA_PATH
+    cols = ['event_type', 'category_code']
+    ds10 = pd.read_csv(DATA_PATH + "2019-Oct.csv", usecols=cols)
+    ds11 = pd.read_csv(DATA_PATH + "2019-Nov.csv", usecols=cols)
+    dstot = pd.concat([ds10, ds11])
+    
+    dstot_grouped = dstot[dstot["event_type"]=="purchase"].groupby("category_code")["event_type"].count()
+    dstot_grouped.plot.bar(figsize=(60, 30))
+    plt.show()
+    
+    return
 
+## ***** Show the conversion rate of each category in decreasing order.
+def cv_rate_cat():
+    global DATA_PATH
+    cols = ['event_type', 'category_code']
+    ds10 = pd.read_csv(DATA_PATH + "2019-Oct.csv", usecols=cols)
+    ds11 = pd.read_csv(DATA_PATH + "2019-Nov.csv", usecols=cols)
+    dstot = pd.concat([ds10, ds11])
+    
+    # Function to be used in the end in apply
+    conv_rate = lambda x: x[0]/x[1]
+    
+    dstot_groupedp = dstot[dstot["event_type"]=="purchase"].groupby("category_code")["event_type"].count()
+    dstot_groupedv = dstot[dstot["event_type"]=="view"].groupby("category_code")["event_type"].count()
+    dstot_merge = pd.merge(dstot_groupedp, dstot_groupedv, on="category_code")
+    print(dstot_merge.apply(conv_rate, axis=1).sort_values(ascending=False))
+    
+    return
 
 
 ########## RQ7 ############################################################################################################

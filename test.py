@@ -11,7 +11,7 @@ import scripts.our_functions as f
 
 # f.probability_purchase(['user_session', 'product_id', 'event_type'])
 
-f.average_time_cart(['event_type', 'user_session', 'product_id', 'event_time'])
+# f.average_time_cart(['event_type', 'user_session', 'product_id', 'event_time'])
 
 # f.average_time_after_first_view(['event_type', 'event_time', 'user_id'])
 
@@ -26,3 +26,9 @@ f.average_time_cart(['event_type', 'user_session', 'product_id', 'event_time'])
 # f.prove_pareto_ops(['user_id'])
 
 # f.average_time_after_first_view_2(['event_type', 'event_time', 'user_id', 'product_id'])
+
+
+
+######## Marco's functions
+
+f.num_sold_per_cat()
